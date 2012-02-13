@@ -1,0 +1,12 @@
+browsecups.py connects to a remote CUPS server, retrieves its printer list, and tries to add the printer locally with a locally installed driver.
+
+Usage
+-----
+browsecups.py servername
+
+You must modify browsecups.py with a username and password that can use the local CUPS web interface.
+
+Requirements
+------------
+The only 3rd party module this uses is pycups.
+
