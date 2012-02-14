@@ -22,10 +22,10 @@ The University of Texas at Austin 78712.    jstrunk@math.utexas.edu
 
 import cups
 import sys
+from Foundation import CFPreferencesCopyAppValue
 
-#user in the admin group who can use the local CUPS web interface
-username="administrator"
-password="xxxx"
+BUNDLE_ID = 'edu.utexas.ma.browsecups'
+
 
 def findppd(c, printer):
     """Find a matching PPD using the longest matching substring from model.
@@ -50,28 +50,64 @@ def findppd(c, printer):
     return None
 
 if __name__ == '__main__':
-    try:
-        cups.setServer(sys.argv[1])
-    except IndexError:
-        print """Usage: {} <hostname>""".format(sys.argv[0])
+    if len(sys.argv) == 2:
+        server = sys.argv[1]
+        interactive = True
+    elif ((CFPreferencesCopyAppValue('server', BUNDLE_ID) is None) or
+       (CFPreferencesCopyAppValue('username', BUNDLE_ID) is None) or
+       (CFPreferencesCopyAppValue('password', BUNDLE_ID) is None)):
+        print """Usage: {program} hostname
+
+To run in non-interactive mode, {program} requires the following preferences to be defined in the {domain} domain:
+    server - The hostname of your CUPS server.
+    username - A user on the local machine who can use the CUPS web administration interface.
+    password - That user's password
+
+The easiest way to create this is to run the following commands as root:
+    defaults write {domain} server hostname
+    defaults write {domain} username administrator
+    defaults write {domain} password xxxx
+
+This will create /var/root/Library/Preferences/{domain}.plist
+        """.format(program=sys.argv[0], domain=BUNDLE_ID)
         sys.exit(1)
+    else:
+        server = CFPreferencesCopyAppValue('server', BUNDLE_ID)
+        username = CFPreferencesCopyAppValue('username', BUNDLE_ID)
+        password = CFPreferencesCopyAppValue('password', BUNDLE_ID)
+        interactive = False
+       
+    cups.setServer(server)
     
-    rc = cups.Connection()
-    
-    printers = rc.getPrinters()
+    try:
+        rc = cups.Connection()
+    except RuntimeError, e:
+        print e
+        sys.exit(2)
+    try:
+        printers = rc.getPrinters()
+    except cups.IPPError, (code, msg):
+        print "Error retrieving printer list: {}".format(msg)
+        sys.exit(3)
     
     cups.setServer("/private/var/run/cupsd")
-    cups.setUser(username)
-    cups.setPasswordCB(lambda x: password)
+    if not interactive:
+        cups.setUser(username)
+        cups.setPasswordCB(lambda x: password)
+
     lc = cups.Connection()
     
     for p in printers.keys():
-        ppd = findppd(lc, printers[p])
-        if ppd is not None:
-            lc.addPrinter(p, device=printers[p]['printer-uri-supported'], location=printers[p]['printer-location'], info=printers[p]['printer-info'], ppdname=ppd)
-        else:
-            lc.addPrinter(p, device=printers[p]['printer-uri-supported'], location=printers[p]['printer-location'], info=printers[p]['printer-info'])
-        lc.setPrinterShared(p, False)
-        lc.enablePrinter(p)
-        lc.acceptJobs(p)
+        try:
+            ppd = findppd(lc, printers[p])
+            if ppd is not None:
+                lc.addPrinter(p, device=printers[p]['printer-uri-supported'], location=printers[p]['printer-location'], info=printers[p]['printer-info'], ppdname=ppd)
+            else:
+                lc.addPrinter(p, device=printers[p]['printer-uri-supported'], location=printers[p]['printer-location'], info=printers[p]['printer-info'])
+            lc.setPrinterShared(p, False)
+            lc.enablePrinter(p)
+            lc.acceptJobs(p)
+        except cups.IPPError, (code, msg):
+            print "Could not add/modify printer {}: {}".format(p, msg)
+            sys.exit(code)
     

@@ -4,7 +4,22 @@ Usage
 -----
 browsecups.py servername
 
-You must modify browsecups.py with a username and password that can use the local CUPS web interface.
+To run without interaction, ./browsecups.py requires the following preferences to be defined in the edu.utexas.ma.browsecups domain:
+    server - The hostname of your CUPS server.
+    username - A user on the local machine who can use the CUPS web administration interface.
+    password - That user's password
+
+The easiest way to create this is to run the following commands as root:
+    defaults write edu.utexas.ma.browsecups server hostname
+    defaults write edu.utexas.ma.browsecups username administrator
+    defaults write edu.utexas.ma.browsecups password xxxx
+
+This will create /var/root/Library/Preferences/edu.utexas.ma.browsecups.plist
+
+Precedence for preferences follows:
+ - MCX
+ - /var/root/Library/Preferences/edu.utexas.ma.browsecups.plist
+ - /Library/Preferences/edu.utexas.ma.browsecups.plist
 
 Requirements
 ------------
