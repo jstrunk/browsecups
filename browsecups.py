@@ -36,7 +36,7 @@ def findppd(c, printer):
         try:
             ppds = c.getPPDs(ppd_make_and_model=model)
         except cups.IPPError:
-            model = model.rstrip(model[-1])
+            model = model[0:-1]
         else:
             if len(ppds) == 1:
                 return ppds.keys()[0]
